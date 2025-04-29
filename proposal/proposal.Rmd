@@ -1,23 +1,63 @@
 ---
-title: "Project proposal"
-author: "Your name"
+title: "Project Proposal"
+author: "Jude Groff"
 output: github_document
 ---
 
-```{r load-packages, message = FALSE}
-library(tidyverse)
+```{r}
 library(broom)
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
+```
+In this project, I will be using data I found from kaggle.com. I found this dataset interesting because I enjoy listening to music, and I thought it would be interesting to see how people listen to music all around the world. I.e, what music platforms are mainly used outside of the US and in the US? How much time spent listening? and etc.
+
+  This data came from kaggle (https://www.kaggle.com/datasets/atharvasoundankar/global-music-streaming-trends-and-listener-insights?resource=download) This dataset has taken trends in music streaming from 2018 - 2024 and synthetically generated data that reflects actual user behavior.
+
+In this project we will be mainly focusing on the question "What music platforms are used to stream music in countries across the world? We would be using the "Streaming.Platform" as the outcome variable, and "Country" as the predictor, to find the top streaming platform for each country.
+
+The comparison groups would be each country under the "Country" variable, i.e USA, Japan, Germany, and etc. would be compared.
+
+For exploratory data analysis we can first read the data;
+
+```{r}
+GMSLP <- read.csv(file = "data/Global_Music_Streaming_Listener_Preferences.csv")
 ```
 
-## 1. Introduction
+Then we can check for missing data;
+
+```{r}
+colSums(is.na(GMSLP))
+```
+As we can see, there is no missing data for this dataset.
+
+We can now make a visualization to explore this dataset more by comparing the amount of Free vs Premium subscriptions in each country.
+
+```{r}
+ggplot(GMSLP, aes(x = Country , fill = Subscription.Type)) +
+  geom_bar() +
+  scale_fill_manual(values = c("lightblue", "blue")) +
+  theme(legend.title = element_blank(), legend.position = "top") +
+  labs(
+    title = "Subscription Type by Country",
+    x = "Country",
+    y = "Count")
+
+```
+We can make another to explore even further, this plot showing the relationship between songs liked and how many minutes listened too. We will have to create a smaller version of "Minutes.Streamed.Per.Day by taking its average, as there are to many "Users" to make an understandable plot. 
+
+```{r}
+GMSLP %>%
+  group_by(Number.of.Songs.Liked) %>%
+  summarise(Average_Minutes = mean(Minutes.Streamed.Per.Day, na.rm = TRUE)) %>%
+  ggplot(aes(x = Number.of.Songs.Liked, y = Average_Minutes)) +
+  geom_line() +
+  labs(x = "Number of Songs Liked", y = "Average Minutes Streamed Per Day", 
+       title = "Average Time Listened by Songs Liked")
+
+```
 
 
+I think a method that will prove to be most useful is working through the dataset with well done plots, as the subject of this data can be visualized very well if done properly.
 
-## 2. Data
-
-
-
-## 3. Data analysis plan
-
-
-
+I don't have an exact hypothesis, but I do expect to see differences in most used streaming platforms across the different countries. Stastical evidence that could prove this is visualizations and/or tibbles of each country, showing the number of "Users" in the countries for each streaming platform, and them being sorted in such a way that it is clear what the top streaming platform is.
