@@ -21,7 +21,7 @@ The comparison groups would be each country under the "Country" variable, i.e US
 For exploratory data analysis we can first read the data;
 
 ```{r}
-GMSLP <- read.csv(file = "data/Global_Music_Streaming_Listener_Preferences.csv")
+GMSLP <- read.csv(file = "../data/Global_Music_Streaming_Listener_Preferences.csv")
 ```
 
 Then we can check for missing data;
