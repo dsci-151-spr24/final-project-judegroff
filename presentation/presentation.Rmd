@@ -1,6 +1,6 @@
 ---
 title: "How Does the World Listen to Music?"
-subtitle: "A look into global listening trends."
+subtitle: "An exploration of how Global and USA music trends compare"
 author: "Jude Groff"
 institute: "Houghton University"
 date: "`r Sys.Date()`"
@@ -24,6 +24,8 @@ library(knitr)
 library(xaringan)
 library(xaringanthemer)
 library(kableExtra)
+library(xaringanExtra)
+library(dplyr)
 ```
 
 ```{r setup, include=FALSE}
@@ -39,13 +41,52 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r load-data, include=FALSE}
 GMSLP <- read.csv(file = "../data/Global_Music_Streaming_Listener_Preferences.csv")
 ```
-
 ```{r}
-platform_percentage_per_country <- GMSLP %>%
-  group_by(Country, Streaming.Platform) %>%
-  summarise(Count = n()) %>%
-  mutate(Percentage = Count / sum(Count) * 100) %>%
-  ungroup()
+GMSLP <- GMSLP %>%
+  mutate(Region = ifelse(Country == "USA", "USA", "Non-USA"))
+
+platform_counts <- GMSLP %>%
+  group_by(Region, Streaming.Platform) %>%
+  summarise(User_Count = n(), .groups = "drop")
+
+region_totals <- platform_counts %>%
+  group_by(Region) %>%
+  summarise(Total_Users = sum(User_Count), .groups = "drop")
+
+platform_usage <- platform_counts %>%
+  left_join(region_totals, by = "Region") %>%
+  mutate(Percentage = round((User_Count / Total_Users) * 100, 1))
+
+top_platforms <- GMSLP %>%
+  count(Streaming.Platform, sort = TRUE) %>%
+  head(7) %>%
+  pull(Streaming.Platform)
+
+platform_usage <- platform_usage %>%
+  mutate(Platform = ifelse(Streaming.Platform %in% top_platforms, 
+                          as.character(Streaming.Platform), 
+                          "Other"))
+
+platform_usage <- platform_usage %>%
+  group_by(Region, Platform) %>%
+  summarise(User_Count = sum(User_Count),
+            Total_Users = first(Total_Users),
+            Percentage = round((User_Count / Total_Users) * 100, 1),
+            .groups = "drop")
+
+platform_order <- platform_usage %>%
+  filter(Region == "Non-USA") %>%
+  arrange(desc(Percentage)) %>%
+  pull(Platform)
+
+platform_usage$Platform <- factor(platform_usage$Platform, levels = platform_order)
+```
+```{r}
+platform_percentages <- GMSLP %>%
+  count(Streaming.Platform) %>%
+  mutate(Percentage = n / sum(n) * 100) %>%
+  arrange(desc(Percentage))
+
 ```
 
 ```{r, include=FALSE}
@@ -57,23 +98,25 @@ style_xaringan(
 
 class: center, middle
 
-##People love listening to music, but what are trends globally? We may know artists that are popular in the US, but what about in India? The UK? Australia? This project will be using synthetic data generated to represent what trends look like on a global scale.
+##What do music trends look like globally? How does it compare to the US?
+---
+
+class: center, middle
+
+##Streaming platforms are a huge part of global trends, as these have become the main source of music in the world. Globally, what music platform is the most used? 
 
 ---
 
 class: center, middle
 
-##We will be exploring the relations between streaming platforms and countries, countries and music.
-
----
-
-class: center, middle
 ```{r}
 GMSLP %>%
   group_by(Streaming.Platform) %>%
   summarise(Count = n()) %>%
   mutate(Percentage = Count / sum(Count) * 100) %>%
   ungroup() %>%
+  arrange(desc(Percentage))%>%
+  select(-Count) %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
 ```
@@ -84,16 +127,103 @@ GMSLP %>%
 
 class: center, middle
 
-##But how does this hold up in different countries?
+##But how does this compare to the US?
 
 ```{r}
-ggplot(platform_percentage_per_country, aes(x = Country, y = Percentage, fill = Streaming.Platform)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Percentage of Streaming Platforms per Country",
-       x = "Country",
-       y = "Percentage") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
-  coord_cartesian(ylim = c(0, 22))  
+GMSLP %>%
+  filter(Country == "USA") %>%
+  group_by(Streaming.Platform) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100) %>%
+  ungroup() %>%
+  arrange(desc(Percentage))%>%
+  select(-Count) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
 ```
 ---
+
+class: center, middle
+
+```{r}
+ggplot(platform_usage, aes(x = Platform, y = Percentage, fill = Region)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_text(aes(label = paste0(Percentage, "%")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, 
+            size = 3) +
+  scale_fill_manual(values = c("USA" = "#E41A1C", "Non-USA" = "#377EB8"),
+                    labels = c("Global Users (excluding USA)", "USA")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Streaming Platforms: USA vs. Global(excluding USA)",
+       x = "Music Platform",
+       y = "Percentage of Users (%)",
+       fill = "User Location") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "gray40"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+  )
+```
+---
+class: center, middle
+
+##What does Global vs. USA streaming trends look like when it comes to purchasing music subscriptions?
+---
+```{r}
+GMSLP %>%
+  count(Region, Subscription.Type) %>%
+  group_by(Region) %>%
+  mutate(Percentage = n / sum(n) * 100) %>%
+  ungroup()%>%
+  ggplot(aes(x = Region, y = n, fill = Subscription.Type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = paste0(round(Percentage), "%")), 
+            position = position_stack(vjust = 0.5),
+            color = "white", fontface = "bold") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Subscription Types by Region",
+    subtitle = "Distribution and percentages across geographic regions",
+    x = "Region",
+    y = "Count",
+    fill = "Subscription Type"
+  ) +
+  theme_minimal()
+```
+---
+class: center, middle
+
+##Does this result in more listening time?
+
+---
+class: center, middle
+
+**Average listening time Global**
+
+```{r}
+GMSLP %>%
+  summarize(Average_Listening_Time_Global = mean(Minutes.Streamed.Per.Day, na.rm = TRUE)) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) 
+```
+
+**Average listening time USA**
+```{r}
+GMSLP %>%
+  filter(Region == "USA") %>%
+  group_by(Country) %>%
+  summarize(Average_Listening_Time_USA = mean(Minutes.Streamed.Per.Day, na.rm = TRUE))%>%
+  select(-Country)%>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+```
+---
+
+class: center, middle
+
+#Conclusion
